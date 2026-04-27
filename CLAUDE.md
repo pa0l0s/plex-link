@@ -56,8 +56,36 @@ git remote add origin git@github.com:pa0l0s/<repo>.git
 git push -u origin main
 ```
 
+## Deploy — Production Server
+
+| Field        | Value |
+|---|---|
+| **Host**     | 192.168.0.24 |
+| **User**     | paolo |
+| **Password** | Searcz1! |
+| **Method**   | `sshpass` + `rsync` (password auth) |
+| **Deploy path** | `/srv/dev-disk-by-uuid-38b0ee7f-c1e1-4567-96bd-305378001aeb/nasty2/html/plex-link/` |
+
+### Deploy command
+
+```bash
+sshpass -p 'Searcz1!' rsync -avz \
+  index.html step1-menu.png step2-signin.png step3-code.png \
+  paolo@192.168.0.24:/srv/dev-disk-by-uuid-38b0ee7f-c1e1-4567-96bd-305378001aeb/nasty2/html/plex-link/
+```
+
+Run from `/mnt/c/Users/pawel/plex-work/`. After any change to files, run this to push to the server.
+
+### Verify deployment
+
+```bash
+sshpass -p 'Searcz1!' ssh paolo@192.168.0.24 \
+  "ls -lh /srv/dev-disk-by-uuid-38b0ee7f-c1e1-4567-96bd-305378001aeb/nasty2/html/plex-link/"
+```
+
 ## Notes
 
 - Do not use `gh` CLI — it is not installed
 - Do not use `--no-verify` or force push unless explicitly asked
 - Repo is private on GitHub
+- Use `rsync` for deploys — it skips unchanged files (faster on re-deploy)
