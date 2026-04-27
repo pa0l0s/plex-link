@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Link Your TV — Plex</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── Reset & tokens ─────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #080808;
+      --surface:   #111111;
+      --surface2:  #181818;
+      --border:    rgba(255,255,255,.07);
+      --amber:     #E5A00D;
+      --amber-dim: #B07D0A;
+      --amber-glow:rgba(229,160,13,.18);
+      --text:      #F0EDE6;
+      --muted:     #7A7570;
+      --success:   #2DC16A;
+      --error:     #E5523A;
+      --radius:    14px;
+    }
+
+    html { height: 100%; }
+
+    body {
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 300;
+      overflow-x: hidden;
+      cursor: default;
+    }
+
+    /* ── Grain overlay ──────────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+      opacity: .03;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    /* ── Ambient radial glow ────────────────────────────── */
+    body::after {
+      content: '';
+      position: fixed;
+      top: -20%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 900px;
+      height: 600px;
+      background: radial-gradient(ellipse at center, rgba(229,160,13,.06) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Layout ─────────────────────────────────────────── */
+    .page {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+    }
+
+    /* ── Header ─────────────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px 48px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+    }
+
+    .logo-text {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 26px;
+      letter-spacing: .12em;
+      color: var(--amber);
+    }
+
+    .header-note {
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: .06em;
+    }
+
+    /* ── Main ───────────────────────────────────────────── */
+    main {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      max-width: 820px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 48px 32px 80px;
+      gap: 0;
+    }
+
+    /* ── Separator arrow between screenshots and form ───── */
+    .steps-arrow {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    .steps-arrow::before,
+    .steps-arrow::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ── Intro block ────────────────────────────────────── */
+    .intro {
+      width: 100%;
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    .eyebrow {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 11px;
+      letter-spacing: .25em;
+      color: var(--amber);
+      opacity: .8;
+      margin-bottom: 10px;
+    }
+
+    .headline {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1.1;
+      color: var(--text);
+      margin-bottom: 12px;
+    }
+
+    .headline em {
+      font-style: italic;
+      color: var(--amber);
+    }
+
+    .subline {
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--muted);
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    /* ── Screenshot steps ───────────────────────────────── */
+    .steps-gallery {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      width: 100%;
+      margin-bottom: 40px;
+    }
+
+    .step-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      transition: border-color .25s, box-shadow .25s;
+      cursor: default;
+    }
+
+    .step-item:hover {
+      border-color: rgba(229,160,13,.28);
+      box-shadow: 0 8px 32px rgba(0,0,0,.5), 0 0 0 1px rgba(229,160,13,.08);
+    }
+
+    .step-item:last-child {
+      border-color: rgba(229,160,13,.25);
+      box-shadow: 0 0 24px rgba(229,160,13,.06);
+    }
+
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+    }
+
+    .step-badge {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--amber-glow);
+      border: 1px solid var(--amber);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 12px;
+      color: var(--amber);
+      flex-shrink: 0;
+    }
+
+    .step-caption {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text);
+      letter-spacing: .02em;
+    }
+
+    .step-img-wrap {
+      position: relative;
+      width: 100%;
+      line-height: 0;
+    }
+
+    .step-img-wrap img {
+      width: 100%;
+      display: block;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+    }
+
+    /* scanline overlay on screenshots */
+    .step-img-wrap::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 3px,
+        rgba(0,0,0,.06) 3px,
+        rgba(0,0,0,.06) 4px
+      );
+      pointer-events: none;
+    }
+
+    /* highlight badge on last step (code screen) */
+    .step-item.highlight .step-header {
+      background: rgba(229,160,13,.07);
+      border-bottom-color: rgba(229,160,13,.2);
+    }
+
+    .step-item.highlight .step-badge {
+      background: var(--amber);
+      color: #0a0700;
+      border-color: var(--amber);
+    }
+
+    /* ── Form section ───────────────────────────────────── */
+    .form-side {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 20px;
+      width: 100%;
+      max-width: 800px;
+    }
+
+    .form-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* amber line at top of card */
+    .form-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent 0%, var(--amber) 40%, transparent 100%);
+      opacity: .6;
+    }
+
+    .form-card-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 19px;
+      margin-bottom: 4px;
+    }
+
+    .form-card-sub {
+      font-size: 12.5px;
+      color: var(--muted);
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }
+
+    /* ── Code inputs ────────────────────────────────────── */
+    .code-field-label {
+      font-size: 11px;
+      letter-spacing: .14em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 14px;
+      display: block;
+    }
+
+    .code-inputs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .code-box {
+      width: 164px;
+      flex: none;
+      height: 62px;
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      text-align: center;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 30px;
+      color: var(--text);
+      caret-color: var(--amber);
+      outline: none;
+      transition: border-color .2s, background .2s, box-shadow .2s;
+      text-transform: uppercase;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    .code-box::placeholder {
+      color: rgba(255,255,255,.1);
+    }
+
+    .code-box:focus {
+      border-color: var(--amber);
+      background: rgba(229,160,13,.05);
+      box-shadow: 0 0 0 3px var(--amber-glow), inset 0 0 12px rgba(229,160,13,.04);
+    }
+
+    .code-box.filled {
+      border-color: rgba(229,160,13,.45);
+      color: var(--amber);
+    }
+
+    .code-box.error-shake {
+      animation: shake .4s ease;
+      border-color: var(--error) !important;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%       { transform: translateX(-5px); }
+      40%       { transform: translateX(5px); }
+      60%       { transform: translateX(-4px); }
+      80%       { transform: translateX(4px); }
+    }
+
+    /* ── Submit button ──────────────────────────────────── */
+    .submit-btn {
+      width: 100%;
+      height: 48px;
+      background: var(--amber);
+      color: #0a0700;
+      border: none;
+      border-radius: var(--radius);
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 18px;
+      letter-spacing: .18em;
+      cursor: pointer;
+      transition: background .2s, transform .1s, box-shadow .2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .submit-btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,.15) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .submit-btn:hover:not(:disabled) {
+      background: #f0a800;
+      box-shadow: 0 0 28px rgba(229,160,13,.35);
+      transform: translateY(-1px);
+    }
+
+    .submit-btn:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .submit-btn:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+
+    .submit-btn .btn-text { transition: opacity .2s; }
+
+    .submit-btn .btn-spinner {
+      display: none;
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(0,0,0,.3);
+      border-top-color: #0a0700;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .submit-btn.loading .btn-text  { opacity: 0; }
+    .submit-btn.loading .btn-spinner { display: block; }
+
+    @keyframes spin {
+      to { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+
+    /* ── Status messages ────────────────────────────────── */
+    .status-msg {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 18px;
+      border-radius: var(--radius);
+      font-size: 13.5px;
+      line-height: 1.5;
+      animation: fade-in .35s ease;
+    }
+
+    .status-msg.show { display: flex; }
+
+    .status-msg.success {
+      background: rgba(45,193,106,.1);
+      border: 1px solid rgba(45,193,106,.25);
+      color: #6ee89a;
+    }
+
+    .status-msg.error-msg {
+      background: rgba(229,82,58,.1);
+      border: 1px solid rgba(229,82,58,.25);
+      color: #f09080;
+    }
+
+    .status-icon {
+      width: 22px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+
+    @keyframes fade-in {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Footer ─────────────────────────────────────────── */
+    footer {
+      text-align: center;
+      padding: 24px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: .04em;
+    }
+
+    footer a {
+      color: var(--amber);
+      text-decoration: none;
+      opacity: .7;
+    }
+
+    footer a:hover { opacity: 1; }
+
+    /* ── Entry animations ───────────────────────────────── */
+    [data-fade] {
+      opacity: 0;
+      transform: translateY(16px);
+      animation: fade-up .55s ease forwards;
+    }
+
+    [data-fade="1"] { animation-delay: .05s; }
+    [data-fade="2"] { animation-delay: .15s; }
+    [data-fade="3"] { animation-delay: .25s; }
+    [data-fade="4"] { animation-delay: .35s; }
+    [data-fade="5"] { animation-delay: .45s; }
+
+    @keyframes fade-up {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Responsive ─────────────────────────────────────── */
+    @media (max-width: 600px) {
+      header { padding: 18px 20px; }
+      .header-note { display: none; }
+      main { padding: 32px 16px 60px; }
+      .form-card { padding: 24px 18px; }
+      .code-box { height: 56px; font-size: 26px; }
+    }
+  </style>
+</head>
+
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <svg class="logo-icon" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="32" height="32" rx="6" fill="#E5A00D"/>
+        <path d="M10 7L22 16L10 25V7Z" fill="#0a0700"/>
+      </svg>
+      <span class="logo-text">PLEX</span>
+    </div>
+    <span class="header-note">TV LINK · SECURE SIGN-IN</span>
+  </header>
+
+  <!-- Main -->
+  <main>
+
+    <!-- ── Intro ── -->
+    <div class="intro" data-fade="1">
+      <p class="eyebrow">Step-by-step guide</p>
+      <h1 class="headline">Link your TV to <em>Plex</em></h1>
+      <p class="subline">Your TV shows a unique code on screen. Follow the steps below, then enter it to connect your device.</p>
+    </div>
+
+    <!-- ── Screenshots stacked ── -->
+    <div class="steps-gallery" data-fade="2">
+
+      <div class="step-item">
+        <div class="step-header">
+          <div class="step-badge">1</div>
+          <span class="step-caption">Open Plex &amp; select <strong>Sign In</strong> from the menu</span>
+        </div>
+        <div class="step-img-wrap">
+          <img src="step1-menu.png" alt="Plex TV menu — select Sign In" />
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-header">
+          <div class="step-badge">2</div>
+          <span class="step-caption">Choose <strong>Sign In with a Code</strong></span>
+        </div>
+        <div class="step-img-wrap">
+          <img src="step2-signin.png" alt="Plex TV sign-in options" />
+        </div>
+      </div>
+
+      <div class="step-item highlight">
+        <div class="step-header">
+          <div class="step-badge">3</div>
+          <span class="step-caption">Your <strong>4-character code</strong> appears on screen — enter it below</span>
+        </div>
+        <div class="step-img-wrap">
+          <img src="step3-code.png" alt="Plex TV displaying the link code" />
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── Divider ── -->
+    <div class="steps-arrow" data-fade="3">Enter your code</div>
+
+    <!-- ── Form ── -->
+    <div class="form-side" data-fade="4">
+      <div class="form-card">
+        <h2 class="form-card-title">Enter your TV code</h2>
+        <p class="form-card-sub">Type the 4-character code exactly as shown on your television.</p>
+
+        <label class="code-field-label">TV Link Code</label>
+        <div class="code-inputs" id="codeInputs">
+          <input class="code-box" id="c0" type="text" maxlength="1" inputmode="text" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="·" aria-label="Code character 1" />
+          <input class="code-box" id="c1" type="text" maxlength="1" inputmode="text" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="·" aria-label="Code character 2" />
+          <input class="code-box" id="c2" type="text" maxlength="1" inputmode="text" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="·" aria-label="Code character 3" />
+          <input class="code-box" id="c3" type="text" maxlength="1" inputmode="text" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="·" aria-label="Code character 4" />
+        </div>
+
+        <div class="status-msg success" id="successMsg">
+          <svg class="status-icon" viewBox="0 0 22 22" fill="none">
+            <circle cx="11" cy="11" r="10" stroke="#2DC16A" stroke-width="1.5"/>
+            <path d="M6.5 11L9.5 14L15.5 8" stroke="#2DC16A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span id="successText">Your TV has been linked! You can now start watching on Plex.</span>
+        </div>
+
+        <div class="status-msg error-msg" id="errorMsg">
+          <svg class="status-icon" viewBox="0 0 22 22" fill="none">
+            <circle cx="11" cy="11" r="10" stroke="#E5523A" stroke-width="1.5"/>
+            <path d="M11 7V11.5M11 14.5V15" stroke="#E5523A" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+          <span id="errorText">Invalid code. Please check your TV screen and try again.</span>
+        </div>
+
+        <button class="submit-btn" id="submitBtn" type="button" disabled>
+          <span class="btn-text">LINK DEVICE</span>
+          <span class="btn-spinner"></span>
+        </button>
+      </div>
+
+      <p style="font-size:12px; color:var(--muted); text-align:center; line-height:1.7;">
+        By linking, you agree to <a href="https://www.plex.tv/about/privacy-legal/" style="color:var(--amber);opacity:.7;text-decoration:none;">Plex's Terms of Service</a>.<br>
+        Codes expire after 5 minutes. Generate a new one on your TV if needed.
+      </p>
+    </div>
+
+  </main>
+
+  <footer>
+    &copy; 2026 Plex Inc. &nbsp;·&nbsp; <a href="https://www.plex.tv/media-server-downloads/">Get Plex</a> &nbsp;·&nbsp; <a href="https://support.plex.tv/">Support</a>
+  </footer>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     Script
+══════════════════════════════════════════════════════ -->
+<script>
+  const WEBHOOK_URL = 'https://n8n.swoojeff.online/webhook/plex-link';
+
+  const inputs  = Array.from(document.querySelectorAll('.code-box'));
+  const btn     = document.getElementById('submitBtn');
+  const success = document.getElementById('successMsg');
+  const errMsg  = document.getElementById('errorMsg');
+
+  function getCode() {
+    return inputs.map(i => i.value).join('').toUpperCase();
+  }
+
+  function updateBtn() {
+    const code = getCode();
+    btn.disabled = code.length < 4;
+  }
+
+  function clearStatus() {
+    success.classList.remove('show');
+    errMsg.classList.remove('show');
+  }
+
+  function shakeInputs() {
+    inputs.forEach(i => {
+      i.classList.remove('error-shake');
+      void i.offsetWidth;          // reflow to restart animation
+      i.classList.add('error-shake');
+    });
+  }
+
+  // ── Input logic ──────────────────────────────────────
+  inputs.forEach((input, idx) => {
+
+    input.addEventListener('keydown', (e) => {
+      clearStatus();
+
+      // Backspace: clear current, move back
+      if (e.key === 'Backspace') {
+        if (input.value === '' && idx > 0) {
+          inputs[idx - 1].value = '';
+          inputs[idx - 1].classList.remove('filled');
+          inputs[idx - 1].focus();
+        } else {
+          input.value = '';
+          input.classList.remove('filled');
+        }
+        updateBtn();
+        e.preventDefault();
+      }
+
+      // Left arrow
+      if (e.key === 'ArrowLeft' && idx > 0) {
+        inputs[idx - 1].focus();
+        e.preventDefault();
+      }
+
+      // Right arrow
+      if (e.key === 'ArrowRight' && idx < inputs.length - 1) {
+        inputs[idx + 1].focus();
+        e.preventDefault();
+      }
+
+      // Enter — submit
+      if (e.key === 'Enter' && getCode().length === 4) {
+        submit();
+      }
+    });
+
+    input.addEventListener('input', (e) => {
+      clearStatus();
+
+      // Only allow alphanumeric
+      const val = input.value.replace(/[^a-zA-Z0-9]/g, '').slice(-1).toUpperCase();
+      input.value = val;
+
+      if (val) {
+        input.classList.add('filled');
+        if (idx < inputs.length - 1) {
+          inputs[idx + 1].focus();
+        } else {
+          input.blur();
+        }
+      } else {
+        input.classList.remove('filled');
+      }
+
+      updateBtn();
+    });
+
+    // Handle paste on any box
+    input.addEventListener('paste', (e) => {
+      e.preventDefault();
+      clearStatus();
+      const paste = (e.clipboardData || window.clipboardData)
+        .getData('text')
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .toUpperCase()
+        .slice(0, 4);
+
+      paste.split('').forEach((ch, i) => {
+        if (inputs[i]) {
+          inputs[i].value = ch;
+          inputs[i].classList.add('filled');
+        }
+      });
+
+      // Focus the next empty or last
+      const next = Math.min(paste.length, inputs.length - 1);
+      inputs[next].focus();
+      updateBtn();
+    });
+
+    input.addEventListener('focus', () => {
+      input.select();
+    });
+  });
+
+  // ── Submit ───────────────────────────────────────────
+  btn.addEventListener('click', submit);
+
+  async function submit() {
+    const code = getCode();
+    if (code.length < 4) return;
+
+    clearStatus();
+    btn.classList.add('loading');
+    btn.disabled = true;
+
+    try {
+      const res = await fetch(WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+
+      if (res.ok) {
+        // Try to parse response for custom message
+        let msg = 'Your TV has been linked! You can now start watching on Plex.';
+        try {
+          const data = await res.json();
+          if (data && data.message) msg = data.message;
+        } catch (_) { /* use default */ }
+
+        document.getElementById('successText').textContent = msg;
+        success.classList.add('show');
+
+        // Clear inputs after success
+        inputs.forEach(i => { i.value = ''; i.classList.remove('filled'); });
+        updateBtn();
+      } else {
+        let errText = 'Invalid code. Please check your TV screen and try again.';
+        try {
+          const data = await res.json();
+          if (data && data.message) errText = data.message;
+          else if (data && data.error) errText = data.error;
+        } catch (_) { /* use default */ }
+
+        document.getElementById('errorText').textContent = errText;
+        errMsg.classList.add('show');
+        shakeInputs();
+        inputs[0].focus();
+      }
+    } catch (err) {
+      document.getElementById('errorText').textContent =
+        'Could not reach the server. Please check your connection and try again.';
+      errMsg.classList.add('show');
+      shakeInputs();
+    } finally {
+      btn.classList.remove('loading');
+      updateBtn();
+    }
+  }
+
+  // Focus first input on load
+  window.addEventListener('load', () => setTimeout(() => inputs[0].focus(), 600));
+</script>
+</body>
+</html>
